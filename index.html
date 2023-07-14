@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Travel Website</title>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        margin: 0;
+        padding: 20px;
+        background-color: #f4f4f4;
+        color: #333;
+      }
+
+      h1 {
+        text-align: center;
+        margin-top: 20px;
+        font-size: 36px;
+        color: #4caf50;
+      }
+
+      .auto-image {
+        display: block;
+        margin: 20px auto;
+        max-width: 300px;
+      }
+
+      form {
+        margin-bottom: 20px;
+      }
+
+      label {
+        display: block;
+        margin-bottom: 10px;
+      }
+
+      input[type="time"] {
+        padding: 8px;
+        font-size: 16px;
+        border: none;
+        border-radius: 4px;
+      }
+
+      button[type="submit"] {
+        padding: 8px 20px;
+        font-size: 16px;
+        background-color: #4caf50;
+        color: #fff;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+      }
+
+      h2 {
+        margin-top: 20px;
+      }
+
+      ul {
+        list-style: none;
+        padding: 0;
+        margin: 0;
+      }
+
+      li {
+        margin-bottom: 5px;
+      }
+
+      #averageTime {
+        font-size: 20px;
+        font-weight: bold;
+      }
+
+      /* Add this CSS block for the grid view */
+
+      #submissionClusters {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+        grid-gap: 10px;
+        margin-bottom: 20px;
+      }
+
+      #submissionClusters li {
+        background-color: #fff;
+        border: 1px solid #ddd;
+        padding: 10px;
+        border-radius: 4px;
+        text-align: center;
+      }
+
+      #submissionClusters li span {
+        display: block;
+        font-weight: bold;
+        margin-bottom: 5px;
+      }
+
+      #avgclustertime {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+        grid-gap: 10px;
+
+        margin-bottom: 20px;
+      }
+
+      #avgclustertime p {
+        margin: 0;
+        background-color: #d73131;
+        text-align: center;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Travel Website</h1>
+    <img
+      class="auto-image"
+      src="https://cdn.bajajauto.com/-/media/assets/bajajauto/360degreeimages/3-wheelers-and-qute/re/diesel/eco-green/00.png"
+      alt="Auto Image"
+    />
+
+    <form id="timeForm">
+      <label for="timeInput">Enter your preferred travel time:</label>
+      <input type="time" id="timeInput" required />
+      <button type="submit">Submit</button>
+    </form>
+
+    <h2>At this time, you will see a crowd outside the college.</h2>
+    <ul id="submissionClusters"></ul>
+
+    <!-- <h2>At this time you will see a crowd :</h2> -->
+    <div id="avgclustertime"></div>
+
+    <h2>Average Time:</h2>
+    <p id="averageTime"></p>
+    <h2>Some Submitted Times:</h2>
+    <ul id="submittedTimes"></ul>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script>
+      const socket = io();
+
+      // Handle form submission
+      document.getElementById("timeForm").addEventListener("submit", (e) => {
+        e.preventDefault();
+        const timeInput = document.getElementById("timeInput");
+        const time = timeInput.value;
+        socket.emit("submitTime", time);
+        timeInput.value = "";
+      });
+
+      // Receive average time
+      socket.on("averageTime", (averageTime) => {
+        const averageTimeElement = document.getElementById("averageTime");
+        averageTimeElement.textContent = averageTime
+          ? `Average Time: ${averageTime}`
+          : "No submitted times yet";
+      });
+
+      // Receive submission clusters
+      socket.on("submissionClusters", (clusters) => {
+        const submissionClustersList =
+          document.getElementById("submissionClusters");
+        const avgClusterTimeElement = document.getElementById("avgclustertime");
+        submissionClustersList.innerHTML = "";
+        avgClusterTimeElement.innerHTML = "";
+
+        clusters.forEach((cluster, index) => {
+          const clusterItem = document.createElement("li");
+          const clusterTitle = document.createElement("span");
+          clusterTitle.textContent = `Cluster ${index + 1}`;
+          clusterItem.appendChild(clusterTitle);
+          cluster.forEach((time) => {
+            const timeItem = document.createElement("span");
+            timeItem.textContent = time;
+            clusterItem.appendChild(timeItem);
+          });
+
+          submissionClustersList.appendChild(clusterItem);
+        });
+
+        if (clusters.length === 0) {
+          console.log("No valid time strings found.");
+          return;
+        }
+
+        clusters.forEach((cluster, index) => {
+          const times = cluster;
+
+          // Step 1: Convert time strings to Date objects
+          const dateObjects = times.map((time) => {
+            const [hours, minutes] = time.split(":");
+            const date = new Date();
+            date.setHours(hours);
+            date.setMinutes(minutes);
+            return date;
+          });
+
+          const totalMilliseconds = dateObjects.reduce(
+            (total, date) => total + date.getTime(),
+            0
+          );
+
+          const averageMilliseconds = totalMilliseconds / dateObjects.length;
+
+          const averageDate = new Date(averageMilliseconds);
+          const averageTime = `${averageDate.getHours()}:${averageDate
+            .getMinutes()
+            .toString()
+            .padStart(2, "0")}`;
+
+          const avgClusterItem = document.createElement("p");
+          avgClusterItem.textContent = `Average Time: ${averageTime} - Cluster ${
+            index + 1
+          }`;
+          avgClusterTimeElement.appendChild(avgClusterItem);
+        });
+      });
+
+      // Receive new submission
+      socket.on("newSubmission", (time) => {
+        const submittedTimesList = document.getElementById("submittedTimes");
+        const listItem = document.createElement("li");
+        listItem.textContent = time;
+        submittedTimesList.appendChild(listItem);
+      });
+    </script>
+  </body>
+</html>

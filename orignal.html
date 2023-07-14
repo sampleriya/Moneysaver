@@ -1,0 +1,72 @@
+<!-- index.html -->
+
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Travel Website</title>
+  </head>
+  <body>
+    <h1>Travel Website</h1>
+    <form id="timeForm">
+      <label for="timeInput">Enter your preferred travel time:</label>
+      <input type="time" id="timeInput" required />
+      <button type="submit">Submit</button>
+    </form>
+
+    <h2>Submitted Times:</h2>
+    <ul id="submittedTimes"></ul>
+
+    <h2>Submission Clusters:</h2>
+    <ul id="submissionClusters"></ul>
+    <h2>Submission Clusters Average Time:</h2>
+    <h3 id="idd"></h3>
+
+    <h2>Average Time:</h2>
+    <p id="averageTime"></p>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script>
+      const socket = io();
+
+      // Handle form submission
+      document.getElementById("timeForm").addEventListener("submit", (e) => {
+        e.preventDefault();
+        const timeInput = document.getElementById("timeInput");
+        const time = timeInput.value;
+        socket.emit("submitTime", time);
+        timeInput.value = "";
+      });
+
+      // Receive average time
+      socket.on("averageTime", (averageTime) => {
+        const averageTimeElement = document.getElementById("averageTime");
+        averageTimeElement.textContent = averageTime
+          ? `Average Time: ${averageTime}`
+          : "No submitted times yet";
+      });
+      // Receive submission clusters
+      socket.on("submissionClusters", (clusters) => {
+        const submissionClustersList =
+          document.getElementById("submissionClusters");
+        const idd = document.getElementById("idd");
+        submissionClustersList.innerHTML = "";
+
+        clusters.forEach((cluster, index) => {
+          const clusterItem = document.createElement("li");
+          clusterItem.textContent = `Cluster ${index + 1}: ${cluster.join(
+            ", "
+          )}`;
+          submissionClustersList.appendChild(clusterItem);
+        });
+      });
+
+      // Receive new submission
+      socket.on("newSubmission", (time) => {
+        const submittedTimesList = document.getElementById("submittedTimes");
+        const listItem = document.createElement("li");
+        listItem.textContent = time;
+        submittedTimesList.appendChild(listItem);
+      });
+    </script>
+  </body>
+</html>
